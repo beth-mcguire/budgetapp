@@ -117,6 +117,24 @@ const budgetController = (function() {
         percentage: data.percentage
       };
     },
+    storeData: function() {
+      localStorage.setItem("data", JSON.stringify(data));
+    },
+
+    deleteData: function() {
+      localStorage.removeItem("data");
+    },
+
+    getStoredData: function() {
+      localData = JSON.parse(localStorage.getItem("data"));
+      return localData;
+    },
+
+    updateData: function(StoredData) {
+      data.totals = StoredData.totals;
+      data.budget = StoredData.budget;
+      data.percentage = StoredData.percentage;
+    },
 
     testing: function() {
       console.log(data);
@@ -190,12 +208,12 @@ var UIController = (function() {
         element = DOMstrings.incomeContainer;
 
         html =
-          '<div class="item clearfix" id="inc-%id%"> <div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">%value%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
+          '<div class="item clearfix" id="inc-%id%"> <div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">%value%</div><div class="item__delete"><button class="item__delete--btn">X</button></div></div></div>';
       } else if (type === "exp") {
         element = DOMstrings.expenseContainer;
 
         html =
-          '<div class="item clearfix" id="exp-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">%value%</div><div class="item__percentage">21%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
+          '<div class="item clearfix" id="exp-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">%value%</div><div class="item__percentage">21%</div><div class="item__delete"><button class="item__delete--btn">X</button></div></div></div>';
       }
 
       // Replace the placeholder text with some actual data
@@ -290,13 +308,12 @@ var UIController = (function() {
           DOMstrings.inputValue
       );
 
-      nodeListForEach(fields, function(cur) {
+      fields.forEach(function(cur) {
         cur.classList.toggle("red-focus");
       });
 
       document.querySelector(DOMstrings.inputBtn).classList.toggle("red");
     },
-
     getDOMstrings: function() {
       return DOMstrings;
     }
@@ -321,6 +338,37 @@ const controller = (function(budgetCtrl, UICtrl) {
     document
       .querySelector(DOM.inputType)
       .addEventListener("change", UICtrl.changeType);
+  };
+
+  var loadData = function() {
+    var storedData, newIncItem, newExpItem;
+
+    // 1. load the data from the local storage
+    storedData = budgetCtrl.getStoredData();
+
+    if (storedData) {
+      // 2. insert the data into the data structure
+      budgetCtrl.updateData(storedData);
+
+      // 3. Create the Income Object
+      storedData.allItems.inc.forEach(function(cur) {
+        newIncItem = budgetCtrl.addItem("inc", cur.description, cur.value);
+        UICtrl.addListItem(newIncItem, "inc");
+      });
+
+      // 4. Create the Expense Objects
+      storedData.allItems.exp.forEach(function(cur) {
+        newExpItem = budgetCtrl.addItem("exp", cur.description, cur.value);
+        UICtrl.addListItem(newExpItem, "exp");
+      });
+
+      // 5. Display the Budget
+      budget = budgetCtrl.getBudget();
+      UICtrl.displayBudget(budget);
+
+      // 6. Display the Percentages
+      updatePercentages();
+    }
   };
 
   const updateBudget = () => {
@@ -359,12 +407,15 @@ const controller = (function(budgetCtrl, UICtrl) {
 
       // 6. Calculate and Update %
       updatePercentages();
+
+      // 7. Store Data
+      budgetCtrl.storeData();
     }
   };
 
   const deleteItem = e => {
     let itemId, splitId, type, id;
-    itemId = e.target.parentNode.parentNode.parentNode.parentNode.id;
+    itemId = e.target.parentNode.parentNode.parentNode.id;
     if (itemId) {
       splitId = itemId.split("-");
       type = splitId[0];
@@ -379,6 +430,9 @@ const controller = (function(budgetCtrl, UICtrl) {
 
       // 4. Update %
       updatePercentages();
+
+      // 5. Save to local storage
+      budgetCtrl.storeData();
     }
   };
 
@@ -393,6 +447,7 @@ const controller = (function(budgetCtrl, UICtrl) {
         percentage: -1
       });
       setupEventListeners();
+      loadData();
     }
   };
 })(budgetController, UIController);
